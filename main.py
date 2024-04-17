@@ -1,6 +1,6 @@
 # Adicionando o título
 print('-' * 60)
-print('Sistema Bancário (V1)'.center(60, ' '))
+print('Sistema Bancário (V2)'.center(60, ' '))
 print('-' * 60)
 
 # Criando o menu
