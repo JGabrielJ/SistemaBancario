@@ -1,7 +1,3 @@
 # SistemaBancario
-Esse projeto possui **três versões** (cada uma em uma branch separada).
-
-O link para cada uma delas está listado abaixo:
-- Versão 1: **v1**
-- Versão 2: **v2**
-- Versão 3: **v3**
+Primeira versão: simula um sistema bancário real **básico**.
+> Referente ao lab "Criando um Sistema Bancário com Python" da DIO.
