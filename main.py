@@ -1,23 +1,194 @@
-# Constantes Globais
-AGENCY: str = '0001'
-VALUE_LIMIT: float = 500.00
-ERROR_MESSAGE: str = '[ERRO: VALOR INVÁLIDO]'
-NEGATIVE_VALUES: str = 'Valores negativos não são permitidos!'
+from abc import ABC, abstractmethod
+
+
+
+# Modelagem de Classes
+class Client:
+    def __init__(self, address: str):
+        self.address = address
+        self.accounts = []
+    
+    def transact(self, account, transaction):
+        transaction.register(account)
+
+    def add_account(self, account):
+        self.accounts.append(account)
+
+
+class FisicalPerson(Client):
+    def __init__(self, name, birthday, cpf, address):
+        super().__init__(address)
+        self.name = name
+        self.birthday = birthday
+        self.cpf = cpf
+
+
+class Account:
+    def __init__(self, account_number, client):
+        self.__balance = 0.00
+        self.__account_number = account_number
+        self.__AGENCY = '0001'
+        self.__client = client
+        self.__extract = Extract()
+
+    @classmethod
+    def new_account(cls, client, account_number):
+        return cls(account_number, client)
+
+    @property
+    def balance(self):
+        return self.__balance
+    
+    @balance.setter
+    def balance(self, value):
+        self.__balance += value
+
+    @property
+    def account_number(self):
+        return self.__account_number
+    
+    @property
+    def agency(self):
+        return self.__AGENCY
+
+    @property
+    def client(self):
+        return self.__client
+    
+    @property
+    def extract(self):
+        return self.__extract
+
+    def withdraw(self, value):
+        status = False
+        balance = self.balance
+
+        if value < 0.00:
+            failure_message('Valores negativos não são permitidos!')
+        elif value > balance:
+            failure_message('O valor do saque é maior que o valor disponível na conta!')
+        else:
+            self.balance = -value; print()
+            display_title('SAQUE REALIZADO COM SUCESSO!', width=60, char='=', fill_type=' ')
+            status = True
+
+        return status
+
+    def deposit(self, value):
+        status = False
+
+        if value < 0.00:
+            failure_message('Valores negativos não são permitidos!')
+        else:
+            self.balance = value; print()
+            display_title('DEPÓSITO REALIZADO COM SUCESSO!', width=60, char='=', fill_type=' ')
+            status = True
+
+        return status
+
+
+class CurrentAccount(Account):
+    def __init__(self, account_number, client, limit=500.00, daily_limit=3):
+        super().__init__(account_number, client)
+        self.limit = limit
+        self.daily_limit = daily_limit
+
+    def withdraw(self, value):
+        status = False
+        withdrawals_number = len([transaction for transaction in self.extract.transactions if transaction['type'] == Saque.__name__])
+
+        if value > self.limit:
+            failure_message(f'O valor máximo para saque é de apenas R${self.limit:.2f}!'.replace('.', ','))
+        elif withdrawals_number >= self.daily_limit:
+            failure_message(f'O limite de {self.daily_limit} saques diários já foi ultrapassado!')
+        else:
+            status = super().withdraw(value)
+
+        return status
+    
+    def __str__(self):
+        account_text = f'• Conta Corrente: {self.agency}-{self.account_number}'
+        owner_name_text = f'• Titular da Conta: {self.client.name}'
+        owner_cpf_text = f'• CPF do Titular: {self.client.cpf}'
+
+        return f'{account_text}\n{owner_name_text}\n{owner_cpf_text}'
+
+
+class Extract:
+    def __init__(self):
+        self.__transactions = []
+
+    @property
+    def transactions(self):
+        return self.__transactions
+    
+    @transactions.setter
+    def transactions(self, data):
+        self.__transactions.append(data)
+
+    def add_transaction(self, transaction):
+        self.transactions = {'type': transaction.__class__.__name__, 'value': transaction.value}
+
+
+class Transaction(ABC):
+    @property
+    @abstractmethod
+    def value(self):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def register(cls, account):
+        pass
+
+
+class Deposito(Transaction):
+    def __init__(self, value):
+        self.__value = value
+    
+    @property
+    def value(self):
+        return self.__value
+
+    def register(self, account):
+        if account.deposit(self.value):
+            account.extract.add_transaction(self)
+
+
+class Saque(Transaction):
+    def __init__(self, value):
+        self.__value = value
+    
+    @property
+    def value(self):
+        return self.__value
+    
+    def register(self, account):
+        if account.withdraw(self.value):
+            account.extract.add_transaction(self)
 
 
 
 # Funções de Customização
-def horizontal_separator(*, char: str, amount: int) -> None:
+def horizontal_separator(*, char: str, amount: int):
     print(char * amount)
 
 
-def display_title(title: str, /, *, width: int, char: str, fill_type: str) -> None:
+def display_title(title: str, /, *, width: int, char: str, fill_type: str):
     horizontal_separator(char=char, amount=width)
     print(title.center(width, fill_type))
     horizontal_separator(char=char, amount=width)
 
 
-def choose_option() -> str:
+def failure_message(msg: str):
+    print()
+    horizontal_separator(char='∗', amount=60)
+    print('∗', end=''); print(msg.center(58, ' '), end=''); print('∗')
+    horizontal_separator(char='∗', amount=60)
+    print()
+
+
+def choose_option():
     menu: dict = {'U': 'Criar novo usuário', 'C': 'Criar nova conta', 'L': 'Listar todas as contas',
                   'D': 'Depositar na conta', 'S': 'Sacar da conta', 'E': 'Visualizar extrato', 'Q': 'Sair do programa'}
 
@@ -29,76 +200,40 @@ def choose_option() -> str:
         option = str(input('\n>>> ')).strip().upper()[0]
     except IndexError:
         option = 'Q'
-    
+
     return option
 
 
-def failure_message(msg: str) -> None:
-    print()
-    horizontal_separator(char='∗', amount=60)
-    print('∗', end=''); print(msg.center(58, ' '), end=''); print('∗')
-    horizontal_separator(char='∗', amount=60)
-    print()
 
-
-def show_data(msg: str, iterable: list[dict]) -> None:
-    for i, data in enumerate(iterable):
-        print(f'{msg} {i+1} {"{"}')
-
-        for key, value in data.items():
-            print(f'  • {key}: {value}')
-
-        print('}')
-
-    print()
-
+# Constante de Mensagem de Erro
+ERROR_MESSAGE: str = '[ERRO: VALOR INVÁLIDO]'
 
 # Funções de Tratamento de Dados
-def check_deposit() -> float:
-    deposit: float
-
+def check_deposit():
     while True:
         try:
             deposit = float(input(f'Valor do depósito: R$').strip())
         except (TypeError, ValueError):
             failure_message(ERROR_MESSAGE)
         else:
-            if deposit < 0.00:
-                failure_message(NEGATIVE_VALUES)
-            else:
-                break
+            break
 
     return deposit
 
 
-def check_withdraw(balance: float, daily_limit: int) -> float | None:
-    withdraw: float
-
+def check_withdraw():
     while True:
         try:
             withdraw = float(input('Valor do saque: R$').strip())
         except (TypeError, ValueError):
             failure_message(ERROR_MESSAGE)
         else:
-            if withdraw < 0.00:
-                failure_message(NEGATIVE_VALUES)
-            elif withdraw > VALUE_LIMIT:
-                failure_message(f'O valor máximo para saque é de apenas R${VALUE_LIMIT:.2f}!'.replace('.', ','))
-            elif withdraw > balance:
-                failure_message('O valor do saque é maior que o valor disponível na conta!')
-            else:
-                break
-
-    if daily_limit <= 0:
-        failure_message('O limite de três saques diários já foi ultrapassado!')
-        return
+            break
 
     return withdraw
 
 
-def check_name() -> str:
-    name: str
-
+def check_name():
     while True:
         name = str(input('Nome completo: ')).strip().title()
 
@@ -111,9 +246,7 @@ def check_name() -> str:
     return name
 
 
-def check_birth(date: str, index: int) -> int:
-    birth: int
-
+def check_birth(date: str, index: int):
     while True:
         try:
             birth = int(input(f'{date.capitalize()} que nasceu: ').strip())
@@ -137,17 +270,15 @@ def check_birth(date: str, index: int) -> int:
     return birth
 
 
-def check_cpf() -> int:
-    cpf: int
-
+def check_cpf():
     while True:
         try:
-            cpf = int(input('CPF (apenas números): ')
+            cpf = str(input('Insira o CPF (apenas números): ')
                     .strip().replace('.', '').replace('-', ''))
         except (TypeError, ValueError):
             failure_message(ERROR_MESSAGE)
         else:
-            if cpf < 10000000000 or cpf > 99999999999:
+            if len(cpf) != 11:
                 failure_message('Insira o CPF corretamente!')
             else:
                 break
@@ -155,9 +286,7 @@ def check_cpf() -> int:
     return cpf
 
 
-def check_address(address: str, index: int) -> str:
-    add: str
-
+def check_address(address: str, index: int):
     while True:
         add = str(input(f'{address.capitalize()} onde mora: ').strip())
 
@@ -169,7 +298,7 @@ def check_address(address: str, index: int) -> str:
                     break
             case 4:
                 if len(add) != 2:
-                    failure_message('Insira a sigla do seu estado corretamente!')
+                    failure_message('Insira a sigla do estado corretamente!')
                 else:
                     break
             case _:
@@ -178,151 +307,166 @@ def check_address(address: str, index: int) -> str:
     return add
 
 
-def already_exists(users_list: list[dict], cpf: int) -> bool:
-    exists: bool = False
+def filter(cpf: str, clients: list):
+    filtered_clients = [client for client in clients if client.cpf == cpf]
+    return filtered_clients[0] if filtered_clients else None
 
-    for user in users_list:
-        if cpf == user['CPF']:
-            exists = True
-            break
 
-    return exists
+def get_client_account(client):
+    if not client.accounts:
+        failure_message('O cliente não possui contas!')
+        return
+
+    return client.accounts[0]
 
 
 
 # Funções de Processamento
-def create_user(users_list: list[dict]) -> list[dict]:
+def create_client(clients: list):
     birthday = address = ''
-    DATE: list[str] = ['dia', 'mês', 'ano']
-    ADDRESS: list[str] = ['rua', 'número da casa',
-                          'bairro', 'cidade',
-                          'sigla do estado']
+
+    cpf = check_cpf()
+    client = filter(cpf, clients)
+
+    if client:
+        failure_message('Cliente já cadastrado!')
+        return
 
     print(); display_title('INSIRA SEUS DADOS', width=60, char='=', fill_type=' '); print()
 
     name: str = check_name()
 
-    for i, d in enumerate(DATE):
+    for i, d in enumerate(['dia', 'mês', 'ano']):
         birth: int = check_birth(d, i)
         birthday += f'{birth}/' if i != 2 else str(birth)
 
-    cpf: int = check_cpf()
-    if already_exists(users_list, cpf):
-        failure_message('CPF já cadastrado!')
-        return []
-
-    for j, a in enumerate(ADDRESS):
+    for j, a in enumerate(['rua', 'número da casa', 'bairro', 'cidade', 'sigla do estado']):
         add: str = check_address(a, j)
         address += f'{add}, ' if j == 0 else f'{add} - ' if 0 < j < 3 else f'{add}/' if j == 3 else add
 
-    user_info: dict = {'Nome': name, 'Data de Nascimento': birthday,
-                       'CPF': cpf, 'Endereço': address}
-    users_list.append(user_info)
+    client = FisicalPerson(name, birthday, cpf, address)
+    clients.append(client)
 
     print(); display_title('USUÁRIO CRIADO COM SUCESSO!', width=60, char='=', fill_type=' ')
 
-    return users_list
 
+def create_account(account_number: int, clients: list, accounts: list):
+    cpf = check_cpf()
+    client = filter(cpf, clients)
 
-def create_account(agency: str, account_number: int, users_list: list[dict], accounts_list: list[dict]) -> list[dict]:
-    current_account: str = f'{agency}-{account_number}'
+    if not client:
+        failure_message('Cliente não encontrado!')
+        return
 
-    while True:
-        print('Insira seu ', end='')
-        user: int = check_cpf()
-
-        if already_exists(users_list, user):
-            break
-        else:
-            failure_message('Usuário não encontrado!')
-
-    account_info: dict = {'Conta Corrente': current_account, 'CPF do Usuário': user}
-    accounts_list.append(account_info)
+    account = CurrentAccount.new_account(client, account_number)
+    accounts.append(account)
+    client.accounts.append(account)
 
     print(); display_title('CONTA CRIADA COM SUCESSO!', width=60, char='=', fill_type=' ')
 
-    return accounts_list
+
+def list_accounts(accounts: list):
+    display_title('CONTAS CADASTRADAS', width=60, char='=', fill_type=' ')
+
+    for account in accounts:
+        print(f'\n{account}')
 
 
-def list_accounts(users_list: list[dict], accounts_list: list[dict]) -> None:
-    display_title('USUÁRIOS E CONTAS', width=60, char='=', fill_type=' ')
+def deposit(clients: list):
+    cpf = check_cpf()
+    client = filter(cpf, clients)
 
-    show_data('Usuário', users_list)
-    show_data('Conta', accounts_list)
+    if not client:
+        failure_message('Cliente não encontrado!')
+        return
 
-
-def deposit(balance: float, extract: str, /) -> tuple[float, str]:
     value = check_deposit()
+    transaction = Deposito(value)
 
-    balance += value
-    extract += f'Depósito: R${value:.2f}\n'.replace('.', ',')
+    account = get_client_account(client)
+    if not account:
+        return
 
-    return balance, extract
-
-
-def withdraw(*, balance: float, extract: str) -> tuple[float, str]:
-    global daily_limit
-    value = check_withdraw(balance, daily_limit)
-
-    if value != None:
-        daily_limit -= 1
-        balance -= value
-        extract += f'Saque: R${value:.2f}\n'.replace('.', ',')
-
-    return balance, extract
+    client.transact(account, transaction)
 
 
-def show_extract(balance: float, /, *, extract: str) -> None:
+def withdraw(clients: list):
+    cpf = check_cpf()
+    client = filter(cpf, clients)
+
+    if not client:
+        failure_message('Cliente não encontrado!')
+        return
+
+    value = check_withdraw()
+    transaction = Saque(value)
+
+    account = get_client_account(client)
+    if not account:
+        return
+
+    client.transact(account, transaction)
+
+
+def show_extract(clients: list):
+    cpf = check_cpf()
+    client = filter(cpf, clients)
+
+    if not client:
+        failure_message('Cliente não encontrado!')
+        return
+    
+    account = get_client_account(client)
+    if not account:
+        return
+
     print(); display_title('EXTRATO DA CONTA', width=60, char='=', fill_type=' ')
-    print('Não houveram movimentações na conta!\n' if extract == '' else extract)
-    print(f'Saldo atual: R${balance:.2f}'.replace('.', ','))
+    transactions = account.extract.transactions
+
+    if not transactions:
+        extract = 'Não houveram movimentações na conta!\n'
+    else:
+        for transaction in transactions:
+            extract = f'{transaction["type"]}: R${transaction["value"]:.2f}'.replace('.', ',')
+    
+    print(extract)
+    print(f'Saldo atual: R${account.balance:.2f}'.replace('.', ','))
 
 
 
-# Adicionando o título
-display_title('Sistema Bancário (V2)', width=60, char='-', fill_type=' ')
+# Execução do Programa
+def main() -> None:
+    clients_list: list = []
+    accounts_list: list = []
+    display_title('Sistema Bancário (V3)', width=60, char='-', fill_type=' ')
 
-# Variáveis de Conta
-account_number: int = 0
-users_list: list[dict] = []
-accounts_list: list[dict] = []
+    while True:
+        option = choose_option()
 
-# Variáveis Bancárias
-balance: float = 0.00
-daily_limit: int = 3
-extract: str = ''
+        match option:
+            case 'U':
+                create_client(clients_list)
+            case 'C':
+                account_number = len(accounts_list) + 1
+                create_account(account_number, clients_list, accounts_list)
+            case 'L':
+                list_accounts(accounts_list)
+            case 'D':
+                deposit(clients_list)
+            case 'S':
+                withdraw(clients_list)
+            case 'E':
+                show_extract(clients_list)
+            case 'Q':
+                print()
+                display_title('ATÉ MAIS E VOLTE SEMPRE!', width=60, char='-', fill_type=' ')
+                break
+            case _:
+                failure_message('Opção inválida!')
 
-while True:
-    # Criando o menu e escolhendo uma opção
-    option = choose_option()
+        horizontal_separator(char='-', amount=60)
 
-    match option:
-        case 'U':
-            # Criando e armazenando um novo usuário
-            users_list = create_user(users_list)
-        case 'C':
-            # Criando e armazenando uma nova conta
-            account_number += 1
-            create_account(AGENCY, account_number, users_list, accounts_list)
-        case 'L':
-            # Mostrando os usuários e contas criadas
-            list_accounts(users_list, accounts_list)
-        case 'D':
-            # Processando e atribuindo os valores de saldo e extrato
-            balance, extract = deposit(balance, extract)
-        case 'S':
-            # Processando e atualizando os valores de saldo e extrato
-            balance, extract = withdraw(balance=balance, extract=extract)
-        case 'E':
-            # Exibindo o extrato da conta
-            show_extract(balance, extract=extract)
-        case 'Q':
-            # Encerrando a execução do programa
-            print()
-            display_title('ATÉ MAIS E VOLTE SEMPRE!', width=60, char='-', fill_type=' ')
-            break
-        case _:
-            # Alertando o usuário sobre a invalidez da opção fornecida
-            failure_message('Opção inválida!')
 
-    horizontal_separator(char='-', amount=60)
+
+if __name__ == '__main__':
+    main()
